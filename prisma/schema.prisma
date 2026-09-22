@@ -1,0 +1,66 @@
+// Prisma 7 klient generatori — generated/prisma papkasiga yaratadi
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+// Baza — PostgreSQL (manzil prisma.config.ts dan)
+datasource db {
+  provider = "postgresql"
+}
+
+// Foydalanuvchi rollari (TZ 7.4)
+enum Roles {
+  ADMIN   // Administrator
+  TEACHER // O'qituvchi
+  STUDENT // O'quvchi
+}
+
+// Qurilma (sessiya) nega yopilgani (TZ 6.5)
+enum RevokeReason {
+  LOGOUT           // O'zi chiqdi
+  LOGOUT_ALL       // Hammasidan chiqdi
+  REVOKED_BY_USER  // Boshqa qurilmasini uzdi
+  PASSWORD_CHANGED // Parol o'zgardi
+  LIMIT_EXCEEDED   // Limit oshdi — eng eskisi uzildi
+  REUSE_DETECTED   // Eski refresh token qayta ishlatildi
+  ADMIN_REVOKED    // Admin uzdi
+}
+
+// Foydalanuvchilar (TZ 7.2)
+model User {
+  id               Int       @id @default(autoincrement()) // PK
+  login            String    @unique                       // Kichik harfda, takrorlanmas
+  hashedPassword   String                                  // bcrypt xeshi
+  fullName         String                                  // Ism
+  role             Roles                                   // Rol
+  isActive         Boolean   @default(true)                // Admin bloklasa false
+  failedLoginCount Int       @default(0)                   // Ketma-ket xato parollar
+  lockedUntil      DateTime?                               // Shu vaqtgacha blok
+  lastLoginAt      DateTime?                               // Oxirgi kirish
+  devices          Devices[]                               // Qurilmalar (1:N)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// Qurilmalar = sessiyalar (TZ 7.3)
+model Devices {
+  deviceId           String        @id @default(uuid())        // UUID — taxmin qilib bo'lmaydi
+  device             String                                    // "Chrome Windows"
+  userAgent          String?                                   // Xom User-Agent
+  ipAddress          String?                                   // IP
+  hashedRefreshToken String        @unique                     // Joriy refresh token SHA-256 xeshi
+  previousTokenHash  String?                                   // Oldingi xesh — reuse detection
+  lastUsedAt         DateTime      @default(now())             // Login/refresh da yangilanadi
+  expiresAt          DateTime                                  // Refresh token tugash vaqti
+  revokedAt          DateTime?                                 // Bo'sh = faol
+  revokedReason      RevokeReason?                             // Sabab
+  userId             Int
+  user               User          @relation(fields: [userId], references: [id]) // Egasi
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([previousTokenHash]) // Reuse tekshiruvi
+  @@index([userId, revokedAt]) // Faol qurilmalar so'rovi
+}
