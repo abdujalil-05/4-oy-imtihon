@@ -304,7 +304,7 @@ Login paytida **bitta tranzaksiyada**: faol sonini sanash → ≥ limit bo'lsa `
 
 - `generator client`: provider `prisma-client`, output `../generated/prisma`, `moduleFormat = "cjs"`.
 - `datasource db`: provider `postgresql`, URL `prisma.config.ts` orqali `env.DB_URI` dan.
-- `generated/` papkasi `.gitignore` da — `npx prisma generate` bilan yaratiladi.
+- `generated/` papkasi `.gitignore` da — `pnpm exec prisma generate` bilan yaratiladi.
 
 ### 7.2. `User`
 
@@ -571,9 +571,9 @@ Passport, ConfigModule, Joi, Redis, OpenAI, Telegram — **ishlatilmaydi**.
 
 ```bash
 cp .env.example .env      # qiymatlarni to'ldiring
-npm install
-npx prisma migrate dev    # baza + Prisma Client (generated/prisma)
-npm run start:dev         # http://localhost:3000/api  |  Swagger: /api/docs
+pnpm install
+pnpm exec prisma migrate dev    # baza + Prisma Client (generated/prisma)
+pnpm start:dev         # http://localhost:3000/api  |  Swagger: /api/docs
 ```
 
 Birinchi ishga tushganda logda `Admin created` chiqadi. Testlar (`*.spec.ts`) loyihada yo'q — tekshiruv 16-bo'lim bo'yicha Postman/Swagger orqali.

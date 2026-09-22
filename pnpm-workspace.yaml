@@ -1,0 +1,8 @@
+# Qaysi paketlarga o'rnatish skriptlarini ishlatishga ruxsat berilgan
+allowBuilds:
+  "@parcel/watcher": true
+  "@prisma/engines": true
+  "@scarf/scarf": false
+  bcrypt: true
+  prisma: true
+  unrs-resolver: true
