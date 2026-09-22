@@ -35,9 +35,9 @@ export class AuthService {
       dto.password,
       user
         ? user.hashedPassword
-        : '$2b$12$C6UzMDM.H6dfI/f/IKcEeO5c5aX6xTFbXbXbXbXbXbXbXbXbXbXbX',
+        : '',
     );
-    if (!user) {
+    if (!user || !isMatchPass) {
       throw new UnauthorizedException("Login yoki parol noto'g'ri");
     }
 
