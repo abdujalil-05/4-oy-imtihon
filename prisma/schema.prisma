@@ -52,7 +52,7 @@ model Teacher {
   userId Int      @unique
   groups Groups[]
 
-  user    User     @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   courses Course[]
 }
 
@@ -90,7 +90,7 @@ model Student {
   id     String @id @default(uuid())
   userId Int    @unique
 
-  user     User            @relation(fields: [userId], references: [id])
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   courses  StudentCourse[]
   groups   Groups?         @relation(fields: [groupsId], references: [id])
   groupsId Int?
