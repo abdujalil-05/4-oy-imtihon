@@ -1,35 +1,35 @@
-import { config } from 'dotenv'; // .env o'qish
-config(); // .env ni process.env ga yuklash
+// dotenv paketidan config funksiyasini olamiz
+import { config } from 'dotenv';
 
-// Majburiy qiymat yo'q bo'lsa — server ishga tushmaydi (TZ 13)
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`.env da ${name} yo'q`);
-  return value;
-}
+// .env faylidagi qiymatlarni process.env ichiga yuklaymiz
+config();
 
-// Butun loyiha bo'ylab ishlatiladigan sozlamalar
+// Loyiha bo'ylab ishlatiladigan sozlamalarni bitta obyektga yig'amiz
 export const env = {
-  PORT: Number(process.env.PORT) || 3000, // Port
-  DB_URI: required('DB_URI'), // Baza manzili
+  // Server ishlaydigan port raqami
+  PORT: Number(process.env.PORT),
+  // Postgres bazasiga ulanish manzili
+  DB_URI: String(process.env.DB_URI),
+  // Yuklangan fayllarga tashqaridan murojaat qilinadigan manzil
+  BASE_URL: String(process.env.BASE_URL),
+  // Fayllar saqlanadigan papka nomi
+  FILE_PATH: String(process.env.FILE_PATH),
+  // Birinchi superadmin uchun login va parol
   SUPERADMIN: {
-    LOGIN: required('SUPERADMIN_LOGIN'), // Birinchi admin logini
-    PASSWORD: required('SUPERADMIN_PASSWORD'), // Birinchi admin paroli
+    // Superadmin logini
+    LOGIN: String(process.env.SUPERADMIN_LOGIN),
+    // Superadmin paroli
+    PASSWORD: String(process.env.SUPERADMIN_PASSWORD),
   },
+  // Tokenlar uchun maxfiy kalitlar va muddatlar
   TOKEN: {
-    ACCESS_KEY: required('ACCESS_TOKEN_KEY'), // Access token imzo kaliti
-    ACCESS_TIME: required('ACCESS_TOKEN_TIME'), // Access token muddati ("15m")
-    REFRESH_DAYS: Number(required('REFRESH_TOKEN_DAYS')), // Refresh token muddati (kun)
-  },
-  AUTH: {
-    MAX_DEVICES: Number(required('MAX_DEVICES')), // Maks faol qurilmalar
-    MAX_ATTEMPTS: Number(required('LOGIN_MAX_ATTEMPTS')), // Blokgacha xatolar
-    LOCK_MINUTES: Number(required('LOGIN_LOCK_MINUTES')), // Blok davomiyligi
-    BCRYPT_ROUNDS: Number(required('BCRYPT_ROUNDS')), // bcrypt narxi
+    // Access token uchun maxfiy kalit
+    ACCESS_KEY: String(process.env.ACCESS_TOKEN_KEY),
+    // Access token amal qilish muddati
+    ACCESS_TIME: String(process.env.ACCESS_TOKEN_TIME),
+    // Refresh token uchun maxfiy kalit
+    REFRESH_KEY: String(process.env.REFRESH_TOKEN_KEY),
+    // Refresh token amal qilish muddati
+    REFRESH_TIME: String(process.env.REFRESH_TOKEN_TIME),
   },
 };
-
-// Access token kaliti kamida 32 belgi bo'lishi shart (TZ 11.3)
-if (env.TOKEN.ACCESS_KEY.length < 32) {
-  throw new Error("ACCESS_TOKEN_KEY kamida 32 belgi bo'lishi kerak");
-}

@@ -1,30 +1,25 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'; // Swagger
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'; // Validatsiya
+// Swagger uchun maydonni tavsiflovchi dekorator
+import { ApiProperty } from '@nestjs/swagger';
+// Kiruvchi ma'lumotni tekshiruvchi qoidalar
+import { IsNotEmpty, IsString } from 'class-validator';
 
-// POST /auth/login tanasi
+// Tizimga kirish uchun yuboriladigan ma'lumot
 export class SignInDto {
+  // Foydalanuvchining logini
   @ApiProperty({
     type: String,
-    example: 'admin',
+    example: 'superadmin',
   })
   @IsString()
   @IsNotEmpty()
-  login!: string; // Login
+  login!: string;
 
+  // Foydalanuvchining paroli
   @ApiProperty({
     type: String,
-    example: 'admin12345',
+    example: 'Superadmin1!',
   })
   @IsString()
   @IsNotEmpty()
-  password!: string; // Parol
-
-  @ApiPropertyOptional({
-    type: String,
-    example: 'Ish noutbuki',
-  })
-  @IsString()
-  @IsOptional()
-  @MaxLength(50)
-  deviceName?: string; // Qurilma nomi (ixtiyoriy)
+  password!: string;
 }

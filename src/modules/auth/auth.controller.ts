@@ -1,66 +1,63 @@
-import { Body, Controller, Get, Patch, Post, Req } from '@nestjs/common'; // HTTP
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'; // Swagger
-import { Throttle } from '@nestjs/throttler'; // Chastota cheklovi
-import type { Request } from 'express'; // So'rov tipi
-import { AuthService } from './auth.service'; // Servis
-import { SignInDto } from './dto/sign-in.dto'; // DTO
-import { RefreshDto } from './dto/refresh.dto'; // DTO
-import { ChangePasswordDto } from './dto/change-password.dto'; // DTO
-import { Public } from '../../common/decorator/public.decorator'; // @Public
-import { CurrentUser } from '../../common/decorator/current-user.decorator'; // req.user
-import type { IUser } from '../../common/interface/IUser.interface'; // Tip
+// Kerakli Nest dekoratorlari
+import {
+  Res,
+  Body,
+  Controller,
+  Post,
+  Req,
+  Get,
+  UseGuards,
+} from '@nestjs/common';
+// Tizimga kirish xizmati
+import { AuthService } from './auth.service';
+// Tizimga kirish ma'lumoti
+import { SignInDto } from './dto/sign-in.dto';
+// Express so'rov va javob turlari
+import type { Response, Request } from 'express';
+// Cookie dan refresh tokenni oluvchi dekorator
+import { RefreshToken } from '../../common/decorator/get-cookie.decorator';
+// Tokendan foydalanuvchi raqamini oluvchi dekorator
+import { UserId } from '../../common/decorator/current-user.decorator';
+// Tizimga kirganini tekshiruvchi guard
+import { AuthGuard } from '../../common/guard/jwt-auth.guard';
 
-// Auth endpointlari (TZ 10.1)
-@ApiTags('auth')
+// Tizimga kirish endpointlari
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // POST /auth/login — ochiq, IP boshiga 10 ta/daqiqa
-  @Public()
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Post('login')
-  signIn(@Body() dto: SignInDto, @Req() req: Request) {
-    return this.authService.signIn(dto, req);
+  // Login va parol bilan tizimga kirish
+  @Post('signin')
+  signIn(
+    @Body() dto: SignInDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.signIn(dto, req, res);
   }
 
-  // POST /auth/refresh — ochiq, IP boshiga 20 ta/daqiqa
-  @Public()
-  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  // Access tokenni yangilash
   @Post('refresh')
-  refreshToken(@Body() dto: RefreshDto, @Req() req: Request) {
-    return this.authService.refreshToken(dto.refreshToken, req);
+  refreshToken(
+    @RefreshToken() refreshToken: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.refreshToken(refreshToken, res);
   }
 
-  // POST /auth/logout — joriy qurilmadan chiqish
-  @ApiBearerAuth()
-  @Post('logout')
-  signOut(@CurrentUser() user: IUser) {
-    return this.authService.signOut(user);
+  // Tizimdan chiqish
+  @Post('signout')
+  signout(
+    @RefreshToken() refreshToken: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.signOut(refreshToken, res);
   }
 
-  // POST /auth/logout-all — hammasidan chiqish
-  @ApiBearerAuth()
-  @Post('logout-all')
-  signOutAll(@CurrentUser() user: IUser) {
-    return this.authService.signOutAll(user);
-  }
-
-  // GET /auth/me — joriy foydalanuvchi
-  @ApiBearerAuth()
+  // O'zi haqidagi ma'lumotni olish
+  @UseGuards(AuthGuard)
   @Get('me')
-  me(@CurrentUser() user: IUser) {
-    return this.authService.me(user);
-  }
-
-  // PATCH /auth/password — parolni o'zgartirish
-  @ApiBearerAuth()
-  @Patch('password')
-  changePassword(@CurrentUser() user: IUser, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(
-      user,
-      dto.currentPassword,
-      dto.newPassword,
-    );
+  findMe(@UserId() userId: number) {
+    return this.authService.findMe(userId);
   }
 }

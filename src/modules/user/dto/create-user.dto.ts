@@ -1,36 +1,39 @@
-import { ApiProperty } from '@nestjs/swagger'; // Swagger
-import { IsEnum, IsNotEmpty, IsString, Length } from 'class-validator'; // Validatsiya
-import { Roles } from '../../../common/enum'; // Rollar
-import { IsPassword } from '../../../common/decorator/is-password.decorator'; // Parol qoidasi
+// Kiruvchi ma'lumotni tekshiruvchi qoidalar
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+  IsStrongPassword,
+} from 'class-validator';
+// Rollar ro'yxati
+import { Roles } from '../../../common/enum';
 
-// POST /users tanasi
+// Yangi foydalanuvchi yaratish uchun yuboriladigan ma'lumot
 export class CreateUserDto {
-  @ApiProperty({
-    type: String,
-    example: 'ali',
-  })
+  // Tizimga kirish uchun login
   @IsString()
   @IsNotEmpty()
-  @Length(3, 50)
-  login!: string; // Login (kichik harfga o'tkaziladi)
+  login!: string;
 
-  @IsPassword('ali12345')
-  password!: string; // Vaqtinchalik parol
+  // Tizimga kirish uchun parol
+  @IsStrongPassword()
+  @IsNotEmpty()
+  password!: string;
 
-  @ApiProperty({
-    type: String,
-    example: 'Ali Valiyev',
-  })
+  // Foydalanuvchining to'liq ismi
   @IsString()
   @IsNotEmpty()
-  @Length(2, 100)
-  fullName!: string; // Ism
+  fullName!: string;
 
-  @ApiProperty({
-    enum: Roles,
-    example: Roles.TEACHER,
-  })
+  // Foydalanuvchining roli
   @IsEnum(Roles)
   @IsNotEmpty()
-  role!: Roles; // Rol
+  role!: Roles;
+
+  // Foydalanuvchining telefon raqami
+  @IsPhoneNumber('UZ')
+  @IsOptional()
+  phone?: string;
 }

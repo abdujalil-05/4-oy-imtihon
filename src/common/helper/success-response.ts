@@ -1,12 +1,14 @@
-import { ISuccess } from '../interface/ISuccess.interface'; // Format
+// Javob ko'rinishini tavsiflovchi interfeys
+import { ISuccess } from '../interface/ISuccess.interface';
 
-// Barcha muvaffaqiyatli javoblar shu orqali qaytadi
+// Barcha muvaffaqiyatli javoblarni bir xil ko'rinishga keltiruvchi funksiya
 export async function successRes(
   data: object,
   statusCode: number = 200,
 ): Promise<ISuccess> {
+  // Status va ma'lumotni birga qaytaramiz
   return {
-    statusCode, // Kod
-    data, // Ma'lumot
+    statusCode,
+    data,
   };
 }

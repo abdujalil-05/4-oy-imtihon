@@ -1,51 +1,72 @@
+// Nest xizmati uchun kerakli vositalar
 import {
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
-} from '@nestjs/common'; // Nest lifecycle
-import { PrismaPg } from '@prisma/adapter-pg'; // Prisma 7 uchun pg adapter
-import { PrismaClient } from '../../../generated/prisma/client'; // Generatsiya qilingan klient
-import { env } from '../index'; // Sozlamalar
-import { Roles } from '../../common/enum'; // Rollar
-import { Crypt } from '../../infrastructure/lib/Crypt'; // Parol xeshlash
+} from '@nestjs/common';
+// Postgres uchun prisma adapteri
+import { PrismaPg } from '@prisma/adapter-pg';
+// Generatsiya qilingan prisma klienti
+import { PrismaClient } from '../../../generated/prisma/client';
+// Sozlamalar
+import { env } from '../index';
+// Rollar ro'yxati
+import { Roles } from '../../common/enum';
+// Parolni shifrlovchi klass
+import { Crypt } from '../../infrastructure/lib/Crypt';
 
-// Baza servisi — butun loyihada bitta nusxa
+// Baza bilan ishlovchi xizmat
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(PrismaService.name); // Log
+  // Baza holatini yozuvchi logger
+  private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    const adapter = new PrismaPg({ connectionString: env.DB_URI }); // pg adapter
-    super({ adapter }); // Klientni adapter bilan yaratish
+    // Postgres adapterini ulanish manzili bilan yasaymiz
+    const adapter = new PrismaPg({
+      connectionString: env.DB_URI,
+    });
+    // Prisma klientini adapter bilan ishga tushiramiz
+    super({
+      adapter,
+    });
   }
 
-  // Modul yuklanganda: ulanish + birinchi admin yo'q bo'lsa yaratish (TZ 7.8)
   async onModuleInit(): Promise<void> {
-    await this.$connect(); // Ulanish
+    // Bazaga ulanamiz
+    await this.$connect();
+    // Ulanganini konsolga yozamiz
     this.logger.log('Database connected');
 
-    const login = env.SUPERADMIN.LOGIN.toLowerCase(); // Login kichik harfda
-    const isAdmin = await this.user.findUnique({ where: { login } }); // Bormi?
-    if (!isAdmin) {
+    // Bazada superadmin bor yoki yo'qligini tekshiramiz
+    const isSuperAdmin = await this.user.findFirst({
+      where: {
+        role: Roles.SUPERADMIN,
+      },
+    });
+    // Superadmin yo'q bo'lsa uni sozlamalardagi ma'lumot bilan yaratamiz
+    if (!isSuperAdmin) {
       await this.user.create({
         data: {
-          login, // Login
-          hashedPassword: await Crypt.hash(env.SUPERADMIN.PASSWORD), // Xeshlangan parol
-          fullName: 'Administrator', // Ism
-          role: Roles.ADMIN, // Rol
+          login: env.SUPERADMIN.LOGIN,
+          hashedPassword: await Crypt.hash(env.SUPERADMIN.PASSWORD),
+          fullName: 'Super Admin',
+          role: Roles.SUPERADMIN,
         },
       });
-      this.logger.log('Admin created'); // Parol logga yozilmaydi
+      // Yaratilganini konsolga yozamiz
+      console.log('Super admin created');
     }
   }
 
-  // Ilova to'xtaganda ulanishni yopish
   async onModuleDestroy(): Promise<void> {
+    // Bazadan uzilamiz
     await this.$disconnect();
+    // Uzilganini konsolga yozamiz
     this.logger.log('Database disconnected');
   }
 }

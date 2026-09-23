@@ -1,25 +1,39 @@
-import { Controller, Delete, Get, Param, ParseUUIDPipe } from '@nestjs/common'; // HTTP
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'; // Swagger
-import { DeviceService } from './device.service'; // Servis
-import { CurrentUser } from '../../common/decorator/current-user.decorator'; // req.user
-import type { IUser } from '../../common/interface/IUser.interface'; // Tip
+// Kerakli Nest dekoratorlari
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
+// Qurilmalar xizmati
+import { DeviceService } from './device.service';
+// Tokendan foydalanuvchi raqamini oluvchi dekorator
+import { UserId } from '../../common/decorator/current-user.decorator';
+// Tizimga kirganini tekshiruvchi guard
+import { AuthGuard } from '../../common/guard/jwt-auth.guard';
+// Cookie dan refresh tokenni oluvchi dekorator
+import { RefreshToken } from '../../common/decorator/get-cookie.decorator';
 
-// Qurilmalar endpointlari (TZ 10.1, 7–8)
-@ApiTags('auth')
-@ApiBearerAuth()
-@Controller('auth/sessions')
+// Qurilmalar endpointlari
+@UseGuards(AuthGuard)
+@Controller('device')
 export class DeviceController {
   constructor(private readonly deviceService: DeviceService) {}
 
-  // GET /auth/sessions — o'z qurilmalari
+  // O'zining qurilmalari ro'yxatini olish
   @Get()
-  findAll(@CurrentUser() user: IUser) {
-    return this.deviceService.findAll(user.sub, user.deviceId);
+  findAll(@UserId() userId: number) {
+    return this.deviceService.findAll(userId);
   }
 
-  // DELETE /auth/sessions/:id — bitta qurilmani uzish (UUID emas → 400)
+  // Eski qurilmani o'chirish
   @Delete(':id')
-  remove(@CurrentUser() user: IUser, @Param('id', ParseUUIDPipe) id: string) {
-    return this.deviceService.remove(user.sub, id);
+  remove(
+    @RefreshToken() refreshToken: string,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.deviceService.remove(refreshToken, id);
   }
 }

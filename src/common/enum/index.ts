@@ -1,17 +1,33 @@
-// Rollar — Prisma enum bilan bir xil qiymatlar
+// Tizimdagi foydalanuvchi rollari
 export enum Roles {
-  ADMIN = 'ADMIN',
+  SUPERADMIN = 'SUPERADMIN',
   TEACHER = 'TEACHER',
   STUDENT = 'STUDENT',
 }
 
-// Qurilma yopilish sabablari — Prisma enum bilan bir xil
-export enum RevokeReason {
-  LOGOUT = 'LOGOUT',
-  LOGOUT_ALL = 'LOGOUT_ALL',
-  REVOKED_BY_USER = 'REVOKED_BY_USER',
-  PASSWORD_CHANGED = 'PASSWORD_CHANGED',
-  LIMIT_EXCEEDED = 'LIMIT_EXCEEDED',
-  REUSE_DETECTED = 'REUSE_DETECTED',
-  ADMIN_REVOKED = 'ADMIN_REVOKED',
+// Umumiy holat: faol yoki nofaol
+export enum Status {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
+// Guruhning holati
+export enum GroupStatus {
+  NEW = 'NEW',
+  ACTIVE = 'ACTIVE',
+  FINISHED = 'FINISHED',
+}
+
+// Davomat belgilari
+export enum AttendanceStatus {
+  PRESENT = 'PRESENT',
+  ABSENT = 'ABSENT',
+  LATE = 'LATE',
+}
+
+// To'lov turlari
+export enum PaymentMethod {
+  CASH = 'CASH',
+  CARD = 'CARD',
+  TRANSFER = 'TRANSFER',
 }

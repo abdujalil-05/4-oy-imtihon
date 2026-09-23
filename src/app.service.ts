@@ -1,20 +1,38 @@
-import { NestFactory } from '@nestjs/core'; // Ilova
-import { ValidationPipe } from '@nestjs/common'; // Validatsiya
-import { NestExpressApplication } from '@nestjs/platform-express'; // Express tipi
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'; // Swagger
-import helmet from 'helmet'; // Xavfsizlik sarlavhalari
-import { AppModule } from './app.module'; // Asosiy modul
-import { env } from './config'; // Sozlamalar
-import { AllExceptionsFilter } from './common/filter/all-exception.filter'; // Xato formati
+// Nest ilovasini yasovchi vosita
+import { NestFactory } from '@nestjs/core';
+// Asosiy modul
+import { AppModule } from './app.module';
+// Sozlamalar
+import { env } from './config';
+// Statik fayllarni ulash uchun express
+import express from 'express';
+// Yo'llarni birlashtiruvchi funksiya
+import { join } from 'path';
+// Kiruvchi ma'lumotlarni tekshiruvchi pipe
+import { ValidationPipe } from '@nestjs/common';
+// Xavfsizlik sarlavhalarini qo'yuvchi paket
+import helmet from 'helmet';
+// Swagger hujjatini yasovchi vositalar
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+// Barcha xatolarni ushlovchi filtr
+import { AllExceptionsFilter } from './common/filter/all-exception.filter';
+// Cookie larni o'qiydigan paket
+import cookieParser from 'cookie-parser';
 
-// Ilovani ishga tushiruvchi klass
+// Serverni sozlab ishga tushiruvchi klass
 export class App {
   static async main() {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule); // Ilova
-    const PORT = env.PORT; // Port
-    const url = '/api'; // Global prefiks (TZ 10)
+    // Nest ilovasini yasaymiz
+    const app = await NestFactory.create(AppModule);
+    // Port raqamini sozlamalardan olamiz
+    const PORT = env.PORT;
+    // Barcha endpointlar uchun umumiy yo'l
+    const url = '/api/v1';
 
-    // Validatsiya: ortiqcha maydon → 400, tiplarni o'girish (TZ 11.6)
+    // Yuklangan fayllarni tashqaridan ochib beramiz
+    app.use(`${url}/uploads`, express.static(join(process.cwd(), 'uploads')));
+
+    // Kiruvchi ma'lumotlarni tekshiruvchi pipe ni ulaymiz
     app.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -23,22 +41,35 @@ export class App {
       }),
     );
 
-    app.useGlobalFilters(new AllExceptionsFilter()); // Xatolar bir xil formatda
-    app.use(helmet()); // Xavfsizlik sarlavhalari
-    app.enableCors({ origin: '*' }); // Hozircha ochiq; frontend qo'shilganda domen
-    app.set('trust proxy', 1); // Nginx ortida haqiqiy IP (TZ 6.3)
-    app.setGlobalPrefix(url); // /api/...
+    // Xatolarni ushlovchi filtrni ulaymiz
+    app.useGlobalFilters(new AllExceptionsFilter());
 
-    // Swagger — /api/docs, Bearer auth bilan (TZ 10.3)
+    // Xavfsizlik sarlavhalarini ulaymiz
+    app.use(helmet());
+
+    // Cookie o'qiydigan vositani ulaymiz
+    app.use(cookieParser());
+
+    // Barcha manzillarga so'rov yuborishga ruxsat beramiz
+    app.enableCors({ origin: '*' });
+
+    // Umumiy yo'lni o'rnatamiz
+    app.setGlobalPrefix(url);
+    // Swagger hujjati sozlamalarini yasaymiz
     const config = new DocumentBuilder()
-      .setTitle('Mini ERP — Auth')
-      .setDescription('JWT + Guardlar + Qurilmalar moduli')
+      .setTitle("O'quv markazi mini ERP")
       .setVersion('1.0')
-      .addBearerAuth()
       .build();
+    // Hujjatni yasovchi funksiya
     const documentFactory = () => SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup(`${url}/docs`, app, documentFactory);
+    // Swagger sahifasini ochamiz va pastdagi schemas bo'limini yashiramiz
+    SwaggerModule.setup(`${url}/docs`, app, documentFactory, {
+      swaggerOptions: {
+        defaultModelsExpandDepth: -1,
+      },
+    });
 
-    await app.listen(PORT, () => console.log('Server running on port', PORT)); // Start
+    // Serverni tinglashga qo'yamiz
+    app.listen(PORT, () => console.log('Server running on port', PORT));
   }
 }

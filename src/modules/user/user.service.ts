@@ -1,122 +1,149 @@
+// Kerakli xato turlari va Nest vositasi
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common'; // Xatolar
-import { PrismaService } from '../../config/database/prisma.service'; // Baza
-import { Crypt } from '../../infrastructure/lib/Crypt'; // Parol
-import { RevokeReason } from '../../common/enum'; // Sabablar
-import { successRes } from '../../common/helper/success-response'; // Javob
-import { DeviceService } from '../auth/device.service'; // Qurilmalar
-import { CreateUserDto } from './dto/create-user.dto'; // DTO
-import { QueryUserDto } from './dto/query-user.dto'; // DTO
+} from '@nestjs/common';
+// Yaratish uchun ishlatiladigan ma'lumot
+import { CreateUserDto } from './dto/create-user.dto';
+// Tahrirlash uchun ishlatiladigan ma'lumot
+import { UpdateUserDto } from './dto/update-user.dto';
+// Baza bilan ishlovchi xizmat
+import { PrismaService } from '../../config/database/prisma.service';
+// Parol bilan ishlovchi klass
+import { Crypt } from '../../infrastructure/lib/Crypt';
+// Bir xil javob qaytaruvchi funksiya
+import { successRes } from '../../common/helper/success-response';
+// Fayl bilan ishlovchi klass
+import { File } from '../../infrastructure/lib/File';
 
-// API javobida qaytadigan maydonlar — hashedPassword YO'Q
-const userSelect = {
-  id: true,
-  login: true,
-  fullName: true,
-  role: true,
-  isActive: true,
-  lastLoginAt: true,
-  createdAt: true,
-};
-
-// Admin amallari (TZ 8.10)
+// Foydalanuvchilar bilan ishlovchi xizmat
 @Injectable()
 export class UserService {
-  constructor(
-    private readonly db: PrismaService, // Baza
-    private readonly device: DeviceService, // Qurilmalar
-  ) {}
+  constructor(private readonly db: PrismaService) {}
 
-  // Mavjudligini tekshirish — yo'q bo'lsa 404
-  private async findOrFail(id: number) {
-    const user = await this.db.user.findUnique({
-      where: { id },
-      select: userSelect,
-    });
-    if (!user) {
-      throw new NotFoundException('Foydalanuvchi topilmadi');
-    }
-    return user;
-  }
-
-  // Yaratish — login kichik harfda, band → 409, parol xeshlanadi
-  async create(dto: CreateUserDto) {
-    const login = dto.login.toLowerCase(); // Kichik harf
-    const existsLogin = await this.db.user.findUnique({ where: { login } }); // Bandmi?
+  async create(createUserDto: CreateUserDto) {
+    // Kiruvchi ma'lumotni ajratib olamiz
+    const { login, password, fullName, role, phone } = createUserDto;
+    // Bunday login bor yoki yo'qligini tekshiramiz
+    const existsLogin = await this.db.user.findUnique({ where: { login } });
+    // Login band bo'lsa xato qaytaramiz
     if (existsLogin) {
-      throw new ConflictException('Bu login band');
+      throw new ConflictException('Bunday login allaqachon mavjud');
     }
-    const hashedPassword = await Crypt.hash(dto.password); // Xesh
+    // Parolni shifrlaymiz
+    const hashedPassword = await Crypt.hash(password);
+    // Yangi foydalanuvchini bazaga yozamiz
     const user = await this.db.user.create({
-      data: { login, hashedPassword, fullName: dto.fullName, role: dto.role },
-      select: userSelect, // Xesh qaytmaydi
+      data: { login, hashedPassword, fullName, role, phone },
+      select: {
+        id: true,
+        login: true,
+        fullName: true,
+        phone: true,
+        role: true,
+        status: true,
+      },
     });
+    // Yaratilgan foydalanuvchini qaytaramiz
     return successRes(user, 201);
   }
 
-  // Ro'yxat — rol va holat bo'yicha filtr
-  async findAll(query: QueryUserDto) {
+  async findAll() {
+    // Barcha foydalanuvchilarni olamiz
     const users = await this.db.user.findMany({
-      where: { role: query.role, isActive: query.isActive }, // undefined → filtr yo'q
-      select: userSelect,
-      orderBy: { id: 'asc' },
+      select: {
+        id: true,
+        login: true,
+        fullName: true,
+        phone: true,
+        imageUrl: true,
+        role: true,
+        status: true,
+      },
+      orderBy: { updatedAt: 'desc' },
     });
+    // Ro'yxatni qaytaramiz
     return successRes(users);
   }
 
-  // Bloklash / ochish
-  async updateStatus(id: number, isActive: boolean, adminId: number) {
-    if (id === adminId) {
-      throw new BadRequestException("Admin o'zini bloklay olmaydi"); // O'zini emas
-    }
-    await this.findOrFail(id); // 404
-    if (!isActive) {
-      // Bloklash — tranzaksiyada: isActive=false + barcha qurilmalar yopiladi
-      const user = await this.db.$transaction(async (tx) => {
-        const updated = await tx.user.update({
-          where: { id },
-          data: { isActive: false },
-          select: userSelect,
-        });
-        await this.device.revokeAll(id, RevokeReason.ADMIN_REVOKED, tx);
-        return updated;
-      });
-      return successRes(user);
-    }
-    // Ochish — hisoblagich va blok tozalanadi
-    const user = await this.db.user.update({
+  async findOne(id: number) {
+    // Foydalanuvchini raqami bo'yicha qidiramiz
+    const user = await this.db.user.findUnique({
       where: { id },
-      data: { isActive: true, failedLoginCount: 0, lockedUntil: null },
-      select: userSelect,
+      select: {
+        id: true,
+        login: true,
+        fullName: true,
+        phone: true,
+        imageUrl: true,
+        role: true,
+        status: true,
+      },
     });
+    // Topilmasa xato qaytaramiz
+    if (!user) {
+      throw new NotFoundException('Foydalanuvchi topilmadi');
+    }
+    // Topilgan foydalanuvchini qaytaramiz
     return successRes(user);
   }
 
-  // Parolni tiklash — yangi xesh + barcha qurilmalar yopiladi
-  async resetPassword(id: number, newPassword: string) {
-    await this.findOrFail(id); // 404
-    const hashedPassword = await Crypt.hash(newPassword); // Xesh
-    await this.db.$transaction(async (tx) => {
-      await tx.user.update({ where: { id }, data: { hashedPassword } });
-      await this.device.revokeAll(id, RevokeReason.ADMIN_REVOKED, tx);
+  async update(
+    id: number,
+    updateUserDto: UpdateUserDto,
+    image?: Express.Multer.File,
+  ) {
+    // Foydalanuvchini bazadan qidiramiz
+    const user = await this.db.user.findUnique({ where: { id } });
+    // Topilmasa xato qaytaramiz
+    if (!user) {
+      throw new NotFoundException('Foydalanuvchi topilmadi');
+    }
+    // Eski parolni boshlang'ich qiymat qilib olamiz
+    let hashedPassword = user.hashedPassword;
+    // Yangi parol yuborilgan bo'lsa uni shifrlaymiz
+    if (updateUserDto.password) {
+      hashedPassword = await Crypt.hash(updateUserDto.password);
+    }
+    // Eski rasmni boshlang'ich qiymat qilib olamiz
+    let imageUrl = user.imageUrl;
+    // Yangi rasm yuborilgan bo'lsa eskisini almashtiramiz
+    if (image) {
+      // Eski rasm bo'lsa uni o'chiramiz
+      if (imageUrl && (await File.exist(imageUrl))) {
+        await File.delete(imageUrl);
+      }
+      // Yangi rasmni saqlaymiz
+      imageUrl = await File.create(image);
+    }
+    // Ochiq parolni saqlamaymiz
+    delete updateUserDto.password;
+    // Ma'lumotlarni yangilaymiz
+    await this.db.user.update({
+      where: { id },
+      data: { imageUrl, hashedPassword, ...updateUserDto },
     });
+    // Bo'sh javob qaytaramiz
     return successRes({});
   }
 
-  // Foydalanuvchi qurilmalari (isCurrent'siz)
-  async findDevices(id: number) {
-    await this.findOrFail(id); // 404
-    return this.device.findAll(id);
-  }
-
-  // Hammasidan chiqarish
-  async removeDevices(id: number) {
-    await this.findOrFail(id); // 404
-    await this.device.revokeAll(id, RevokeReason.ADMIN_REVOKED);
+  async remove(id: number) {
+    // Foydalanuvchini bazadan qidiramiz
+    const user = await this.db.user.findUnique({ where: { id } });
+    // Topilmasa xato qaytaramiz
+    if (!user) {
+      throw new NotFoundException('Foydalanuvchi topilmadi');
+    }
+    // Rasmi bo'lsa uni diskdan o'chiramiz
+    if (user.imageUrl && (await File.exist(user.imageUrl))) {
+      await File.delete(user.imageUrl);
+    }
+    // Foydalanuvchining qurilmalarini o'chiramiz
+    await this.db.devices.deleteMany({ where: { userId: id } });
+    // Foydalanuvchini o'chiramiz
+    await this.db.user.delete({ where: { id } });
+    // Bo'sh javob qaytaramiz
     return successRes({});
   }
 }

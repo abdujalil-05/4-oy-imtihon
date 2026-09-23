@@ -1,72 +1,83 @@
+// Kerakli Nest dekoratorlari
 import {
-  Body,
   Controller,
-  Delete,
   Get,
-  Param,
-  ParseIntPipe,
-  Patch,
   Post,
-  Query,
-} from '@nestjs/common'; // HTTP
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'; // Swagger
-import { UserService } from './user.service'; // Servis
-import { CreateUserDto } from './dto/create-user.dto'; // DTO
-import { UpdateStatusDto } from './dto/update-status.dto'; // DTO
-import { ResetPasswordDto } from './dto/reset-password.dto'; // DTO
-import { QueryUserDto } from './dto/query-user.dto'; // DTO
-import { AccessRoles } from '../../common/decorator/roles.decorator'; // @AccessRoles
-import { UserId } from '../../common/decorator/current-user.decorator'; // @UserId
-import { Roles } from '../../common/enum'; // Rollar
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  ParseIntPipe,
+} from '@nestjs/common';
+// Foydalanuvchilar xizmati
+import { UserService } from './user.service';
+// Yaratish uchun ishlatiladigan ma'lumot
+import { CreateUserDto } from './dto/create-user.dto';
+// Tahrirlash uchun ishlatiladigan ma'lumot
+import { UpdateUserDto } from './dto/update-user.dto';
+// Tizimga kirganini tekshiruvchi guard
+import { AuthGuard } from '../../common/guard/jwt-auth.guard';
+// Rolni tekshiruvchi guard
+import { RolesGuard } from '../../common/guard/roles.guard';
+// Ruxsat etilgan rollarni belgilovchi dekorator
+import { AccessRoles } from '../../common/decorator/roles.decorator';
+// Faylni qabul qiluvchi interceptor
+import { FileInterceptor } from '@nestjs/platform-express';
+// Rasmni tekshiruvchi pipe
+import { ImageValidationPipe } from '../../common/pipe/image-validation.pipe';
+// Rollar ro'yxati
+import { Roles } from '../../common/enum';
 
-// Admin endpointlari — hammasi faqat ADMIN (TZ 10.2)
-@ApiTags('users')
-@ApiBearerAuth()
-@AccessRoles(Roles.ADMIN)
-@Controller('users')
+// Foydalanuvchilar endpointlari
+@UseGuards(AuthGuard, RolesGuard)
+@AccessRoles(Roles.SUPERADMIN)
+@Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // POST /users — yaratish
+  // Yangi o'qituvchi yoki o'quvchi yaratish
   @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.userService.create(dto);
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.userService.create(createUserDto);
   }
 
-  // GET /users — ro'yxat
+  // Barcha foydalanuvchilar ro'yxatini olish
   @Get()
-  findAll(@Query() query: QueryUserDto) {
-    return this.userService.findAll(query);
+  findAll() {
+    return this.userService.findAll();
   }
 
-  // PATCH /users/:id/status — bloklash / ochish
-  @Patch(':id/status')
-  updateStatus(
+  // Bitta foydalanuvchini olish
+  @AccessRoles('ID')
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.findOne(id);
+  }
+
+  // Foydalanuvchini tahrirlash
+  @AccessRoles('ID')
+  @Patch(':id')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: {
+        fileSize: 20 * 1024 * 1024,
+      },
+    }),
+  )
+  update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateStatusDto,
-    @UserId() adminId: number, // O'zini bloklamasligi uchun
+    @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile(new ImageValidationPipe()) image?: Express.Multer.File,
   ) {
-    return this.userService.updateStatus(id, dto.isActive, adminId);
+    return this.userService.update(id, updateUserDto, image);
   }
 
-  // PATCH /users/:id/password — parolni tiklash
-  @Patch(':id/password')
-  resetPassword(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ResetPasswordDto,
-  ) {
-    return this.userService.resetPassword(id, dto.newPassword);
-  }
-
-  // GET /users/:id/sessions — qurilmalari
-  @Get(':id/sessions')
-  findDevices(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.findDevices(id);
-  }
-
-  // DELETE /users/:id/sessions — hammasidan chiqarish
-  @Delete(':id/sessions')
-  removeDevices(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.removeDevices(id);
+  // Foydalanuvchini o'chirish
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.remove(id);
   }
 }

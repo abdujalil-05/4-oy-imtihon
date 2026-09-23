@@ -1,56 +1,81 @@
-import { JwtService, JwtSignOptions } from '@nestjs/jwt'; // JWT
-import { UnauthorizedException } from '@nestjs/common'; // 401
-import { createHash, randomBytes } from 'crypto'; // Node crypto
-import { env } from '../../config'; // Sozlamalar
-import { IPayload } from '../../common/interface/IPayload.interface'; // Token ichidagi ma'lumot
+// Token ichidagi ma'lumot ko'rinishi
+import { IPayload } from '../../common/interface/IPayload.interface';
+// Jwt bilan ishlovchi Nest xizmati
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+// Sozlamalar
+import { env } from '../../config';
+// Ruxsat yo'qligi haqidagi xato
+import { UnauthorizedException } from '@nestjs/common';
+// Express javob turi
+import { Response } from 'express';
+// Tokenlar juftligi ko'rinishi
+import { IToken } from '../../common/interface/IToken.interface';
 
-// Tokenlar bilan ishlash — statik klass
+// Tokenlar bilan ishlovchi yordamchi klass
 export class Token {
-  private static readonly jwt = new JwtService(); // JWT servisi
+  // Jwt xizmatining yagona nusxasi
+  private static readonly jwt = new JwtService();
 
-  // Access token (JWT, HS256, 15 daqiqa) — TZ 5.1
-  static async getAccessToken(payload: IPayload): Promise<string> {
-    return this.jwt.signAsync(payload, {
-      secret: env.TOKEN.ACCESS_KEY, // Imzo kaliti
-      expiresIn: env.TOKEN.ACCESS_TIME as JwtSignOptions['expiresIn'], // Muddat
-      algorithm: 'HS256', // Algoritm
-    });
+  // Payload asosida access va refresh tokenlarni yasaydi
+  static async getToken(payload: IPayload): Promise<IToken> {
+    // Ikkala tokenni birga yasaymiz
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwt.signAsync(payload, {
+        secret: env.TOKEN.ACCESS_KEY,
+        expiresIn: env.TOKEN.ACCESS_TIME as JwtSignOptions['expiresIn'],
+      }),
+      this.jwt.signAsync(payload, {
+        secret: env.TOKEN.REFRESH_KEY,
+        expiresIn: env.TOKEN.REFRESH_TIME as JwtSignOptions['expiresIn'],
+      }),
+    ]);
+    // Tayyor tokenlarni qaytaramiz
+    return { accessToken, refreshToken };
   }
 
-  // Access tokenni tekshirish — imzo, muddat, faqat HS256 (TZ 11.3)
-  static async verifyAccessToken(token: string): Promise<IPayload> {
+  // Tokenni tekshirib ichidagi ma'lumotni qaytaradi
+  static async verifyToken(token: string, type: string): Promise<any> {
     try {
-      return await this.jwt.verifyAsync<IPayload>(token, {
-        secret: env.TOKEN.ACCESS_KEY, // Kalit
-        algorithms: ['HS256'], // "none" rad etiladi
+      // Token turiga qarab kerakli kalit bilan tekshiramiz
+      const verifiedData = await this.jwt.verifyAsync(token, {
+        secret:
+          type === 'access' ? env.TOKEN.ACCESS_KEY : env.TOKEN.REFRESH_KEY,
       });
-    } catch {
-      throw new UnauthorizedException("Token yaroqsiz yoki muddati o'tgan");
+      // Ma'lumotni qaytaramiz
+      return verifiedData;
+    } catch (error) {
+      // Token yaroqsiz bo'lsa xato qaytaramiz
+      throw new UnauthorizedException('Tizimga kirishda nosozlik');
     }
   }
 
-  // Refresh token — JWT emas, 64 bayt kriptografik tasodif (TZ 5.2)
-  static getRefreshToken(): string {
-    return randomBytes(64).toString('hex');
+  // Tokenlarni cookie ichiga yozadi
+  static setCookie(
+    res: Response,
+    accessToken: string,
+    refreshToken?: string,
+  ): void {
+    // Access tokenni cookie ga yozamiz
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: false,
+      maxAge: parseInt(env.TOKEN.ACCESS_TIME) * 24 * 60 * 60 * 1000,
+    });
+    // Refresh token berilgan bo'lsa uni ham yozamiz
+    if (refreshToken) {
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: false,
+        maxAge: parseInt(env.TOKEN.REFRESH_TIME) * 24 * 60 * 60 * 1000,
+      });
+    }
   }
 
-  // Refresh tokenning SHA-256 xeshi — bazada faqat shu saqlanadi
-  static hashRefreshToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-
-  // Refresh token tugash vaqti = hozir + N kun
-  static refreshExpiresAt(): Date {
-    return new Date(Date.now() + env.TOKEN.REFRESH_DAYS * 24 * 60 * 60 * 1000);
-  }
-
-  // Access token muddati sekundlarda ("15m" → 900) — javobda qaytarish uchun
-  static accessTtlSeconds(): number {
-    const time = env.TOKEN.ACCESS_TIME; // "15m"
-    const value = parseInt(time, 10); // 15
-    const unit = time.slice(-1); // "m"
-    if (unit === 'h') return value * 3600;
-    if (unit === 'm') return value * 60;
-    return value;
+  // Cookie dagi tokenlarni o'chiradi
+  static clearCookie(res: Response): void {
+    // Refresh tokenni o'chiramiz
+    res.clearCookie('refreshToken');
+    // Access tokenni o'chiramiz
+    res.clearCookie('accessToken');
   }
 }

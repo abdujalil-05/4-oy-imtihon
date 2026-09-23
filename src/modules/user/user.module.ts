@@ -1,11 +1,13 @@
-import { Module } from '@nestjs/common'; // Modul
-import { UserService } from './user.service'; // Servis
-import { UserController } from './user.controller'; // Controller
-import { AuthModule } from '../auth/auth.module'; // DeviceService uchun
+// Modul yasash uchun Nest vositasi
+import { Module } from '@nestjs/common';
+// Foydalanuvchilar xizmati
+import { UserService } from './user.service';
+// Foydalanuvchilar kontrolleri
+import { UserController } from './user.controller';
 
+// Foydalanuvchilar moduli
 @Module({
-  imports: [AuthModule], // DeviceService
-  controllers: [UserController], // Endpointlar
-  providers: [UserService], // Servis
+  controllers: [UserController],
+  providers: [UserService],
 })
 export class UserModule {}

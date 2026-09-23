@@ -1,14 +1,14 @@
-import bcrypt from 'bcrypt'; // Parol xeshlash
-import { env } from '../../config'; // Rounds .env dan
+// Parolni shifrlovchi paket
+import bcrypt from 'bcrypt';
 
-// Parol bilan ishlash — statik klass
+// Parol bilan ishlovchi yordamchi klass
 export class Crypt {
-  // Parolni xeshlash (bcrypt, rounds .env dan — TZ 11.1)
+  // Berilgan matnni shifrlab qaytaradi
   static async hash(data: string) {
-    return bcrypt.hash(data, env.AUTH.BCRYPT_ROUNDS);
+    return bcrypt.hash(data, 7);
   }
 
-  // Parolni xesh bilan solishtirish
+  // Oddiy matn shifrlangan matnga mos kelishini tekshiradi
   static async compare(data: string, hashedData: string) {
     return bcrypt.compare(data, hashedData);
   }

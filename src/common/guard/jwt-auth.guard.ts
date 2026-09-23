@@ -1,61 +1,39 @@
+// Guard yozish uchun kerakli Nest vositalari
 import {
   Injectable,
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
-} from '@nestjs/common'; // Guard
-import { Reflector } from '@nestjs/core'; // Metama'lumot o'qish
-import { Token } from '../../infrastructure/lib/Token'; // Token tekshirish
-import { PrismaService } from '../../config/database/prisma.service'; // Baza
-import { IS_PUBLIC_KEY } from '../decorator/public.decorator'; // @Public kaliti
+} from '@nestjs/common';
+// Token bilan ishlovchi yordamchi klass
+import { Token } from '../../infrastructure/lib/Token';
 
-// Global auth guard: @Public bo'lsa o'tkazadi, aks holda token + qurilma + foydalanuvchi tekshiradi (TZ 8.2)
+// Foydalanuvchi tizimga kirganini tekshiruvchi guard
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector, // Metama'lumot
-    private readonly db: PrismaService, // Baza
-  ) {}
-
   async canActivate(context: ExecutionContext) {
-    // @Public handler yoki class darajasida bormi?
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (isPublic) return true; // Ochiq endpoint
-
-    const req = context.switchToHttp().getRequest(); // So'rov
-    const [type, accessToken] = req.headers.authorization?.split(' ') ?? []; // "Bearer <token>"
-    if (type !== 'Bearer' || !accessToken) {
-      throw new UnauthorizedException('Avtorizatsiya talab qilinadi'); // Token yo'q
+    // So'rov obyektini olamiz
+    const req = context.switchToHttp().getRequest();
+    // Cookie dan access tokenni olamiz
+    const accessToken = req.cookies?.accessToken;
+    // Token bo'lmasa kiritmaymiz
+    if (!accessToken) {
+      throw new UnauthorizedException('Tizimga kirishda nosozlik');
     }
-
-    const data = await Token.verifyAccessToken(accessToken); // Imzo + muddat (xato → 401)
-
-    // Qurilmani foydalanuvchi bilan birga bitta so'rovda olamiz
-    const device = await this.db.devices.findUnique({
-      where: { deviceId: data.deviceId },
-      include: { user: { select: { id: true, role: true, isActive: true } } },
-    });
-
-    // Qurilma yo'q / yopilgan / muddati o'tgan / boshqa odamniki / foydalanuvchi bloklangan → 401
-    if (
-      !device ||
-      device.revokedAt ||
-      device.expiresAt <= new Date() ||
-      device.userId !== data.sub ||
-      !device.user.isActive
-    ) {
-      throw new UnauthorizedException('Sessiya tugagan. Qayta kiring');
+    // Tokenni tekshirib ichidagi ma'lumotni olamiz
+    const data = await Token.verifyToken(accessToken, 'access');
+    // Ma'lumot bo'lmasa kiritmaymiz
+    if (!data) {
+      throw new UnauthorizedException('Tizimga kirishda nosozlik');
     }
-
-    // req.user — rol BAZADAN (Admin o'zgartirsa darhol kuchga kiradi)
+    // Keyingi qatlamlar uchun foydalanuvchini so'rovga yozamiz
     req.user = {
-      sub: device.userId,
-      role: device.user.role,
-      deviceId: device.deviceId,
+      sub: data.sub,
+      role: data.role,
+      status: data.status,
+      deviceId: data.deviceId,
     };
+    // Ruxsat beramiz
     return true;
   }
 }

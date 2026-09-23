@@ -1,6 +1,11 @@
-// Access token ichidagi ma'lumot (TZ 5.1)
+// Token ichida saqlanadigan ma'lumotlar ko'rinishi
 export interface IPayload {
-  sub: number; // Foydalanuvchi ID
-  role: string; // Rol (ma'lumot uchun — haqiqiy rol bazadan)
-  deviceId: string; // Qurilma (sessiya) ID
+  // Foydalanuvchining raqami
+  sub: number;
+  // Foydalanuvchining roli
+  role: string;
+  // Foydalanuvchining holati
+  status: string;
+  // Foydalanuvchi kirgan qurilma raqami
+  deviceId: number;
 }

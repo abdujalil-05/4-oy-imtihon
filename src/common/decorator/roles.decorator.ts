@@ -1,7 +1,9 @@
-import { SetMetadata } from '@nestjs/common'; // Metama'lumot
+// Metadata yozish uchun Nest vositasi
+import { SetMetadata } from '@nestjs/common';
 
-export const ROLES_KEY = 'roles'; // Kalit
+// Metadata saqlanadigan kalit nomi
+export const ROLES_KEY = 'roles';
 
-// @AccessRoles(Roles.ADMIN, ...) — ruxsat etilgan rollar (TZ 9.4)
+// Endpointga ruxsat etilgan rollarni belgilovchi dekorator
 export const AccessRoles = (...roles: string[]) =>
   SetMetadata(ROLES_KEY, roles);

@@ -1,66 +1,412 @@
-// Prisma 7 klient generatori — generated/prisma papkasiga yaratadi
+// Prisma client generatori sozlamalari
 generator client {
   provider     = "prisma-client"
   output       = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
-// Baza — PostgreSQL (manzil prisma.config.ts dan)
+// Ma'lumotlar bazasi turi postgresql
 datasource db {
   provider = "postgresql"
 }
 
-// Foydalanuvchi rollari (TZ 7.4)
+// Tizimdagi foydalanuvchi rollari
 enum Roles {
-  ADMIN   // Administrator
-  TEACHER // O'qituvchi
-  STUDENT // O'quvchi
+  SUPERADMIN
+  TEACHER
+  STUDENT
 }
 
-// Qurilma (sessiya) nega yopilgani (TZ 6.5)
-enum RevokeReason {
-  LOGOUT           // O'zi chiqdi
-  LOGOUT_ALL       // Hammasidan chiqdi
-  REVOKED_BY_USER  // Boshqa qurilmasini uzdi
-  PASSWORD_CHANGED // Parol o'zgardi
-  LIMIT_EXCEEDED   // Limit oshdi — eng eskisi uzildi
-  REUSE_DETECTED   // Eski refresh token qayta ishlatildi
-  ADMIN_REVOKED    // Admin uzdi
+// Umumiy holat: faol yoki nofaol
+enum Status {
+  ACTIVE
+  INACTIVE
 }
 
-// Foydalanuvchilar (TZ 7.2)
+// Guruhning holati
+enum GroupStatus {
+  NEW
+  ACTIVE
+  FINISHED
+}
+
+// Davomat belgilari
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+// To'lov turlari
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+// Foydalanuvchilar jadvali: superadmin, o'qituvchi va o'quvchilar
 model User {
-  id               Int       @id @default(autoincrement()) // PK
-  login            String    @unique                       // Kichik harfda, takrorlanmas
-  hashedPassword   String                                  // bcrypt xeshi
-  fullName         String                                  // Ism
-  role             Roles                                   // Rol
-  isActive         Boolean   @default(true)                // Admin bloklasa false
-  failedLoginCount Int       @default(0)                   // Ketma-ket xato parollar
-  lockedUntil      DateTime?                               // Shu vaqtgacha blok
-  lastLoginAt      DateTime?                               // Oxirgi kirish
-  devices          Devices[]                               // Qurilmalar (1:N)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  // Foydalanuvchining unikal raqami
+  id                  Int                  @id @default(autoincrement())
+  // Tizimga kirish uchun login
+  login               String               @unique
+  // Shifrlangan parol
+  hashedPassword      String
+  // Foydalanuvchining to'liq ismi
+  fullName            String?
+  // Telefon raqami
+  phone               String?
+  // Profil rasmiga havola
+  imageUrl            String?
+  // Foydalanuvchi roli
+  role                Roles
+  // Foydalanuvchi holati
+  status              Status               @default(ACTIVE)
+  // Foydalanuvchi kirgan qurilmalar
+  devices             Devices[]
+  // O'qituvchi sifatida biriktirilgan guruhlar
+  groups              Group[]
+  // O'quvchi sifatida qo'shilgan guruhlar
+  groupStudents       GroupStudent[]
+  // O'quvchining davomat yozuvlari
+  attendances         Attendance[]
+  // O'quvchining to'lovlari
+  payments            Payment[]
+  // O'qituvchining maoshlari
+  salaries            Salary[]
+  // O'quvchining imtihon natijalari
+  examResults         ExamResult[]
+  // O'quvchi topshirgan uy vazifalari
+  homeworkSubmissions HomeworkSubmission[]
+  // Yaratilgan vaqti
+  createdAt           DateTime             @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt           DateTime             @updatedAt
 }
 
-// Qurilmalar = sessiyalar (TZ 7.3)
+// Foydalanuvchi kirgan qurilmalar jadvali
 model Devices {
-  deviceId           String        @id @default(uuid())        // UUID — taxmin qilib bo'lmaydi
-  device             String                                    // "Chrome Windows"
-  userAgent          String?                                   // Xom User-Agent
-  ipAddress          String?                                   // IP
-  hashedRefreshToken String        @unique                     // Joriy refresh token SHA-256 xeshi
-  previousTokenHash  String?                                   // Oldingi xesh — reuse detection
-  lastUsedAt         DateTime      @default(now())             // Login/refresh da yangilanadi
-  expiresAt          DateTime                                  // Refresh token tugash vaqti
-  revokedAt          DateTime?                                 // Bo'sh = faol
-  revokedReason      RevokeReason?                             // Sabab
+  // Qurilmaning unikal raqami
+  deviceId           Int      @id @default(autoincrement())
+  // Qurilma nomi (brauzer va operatsion tizim)
+  device             String
+  // Shifrlangan refresh token
+  hashedRefreshToken String
+  // Qurilma egasining raqami
   userId             Int
-  user               User          @relation(fields: [userId], references: [id]) // Egasi
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  // Foydalanuvchi bilan bog'lanish
+  user               User     @relation(fields: [userId], references: [id])
+  // Yaratilgan vaqti
+  createdAt          DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt          DateTime @updatedAt
+}
 
-  @@index([previousTokenHash]) // Reuse tekshiruvi
-  @@index([userId, revokedAt]) // Faol qurilmalar so'rovi
+// O'quv markazidagi kurslar jadvali
+model Course {
+  // Kursning unikal raqami
+  id          Int      @id @default(autoincrement())
+  // Kurs nomi
+  name        String   @unique
+  // Kurs haqida qisqacha ma'lumot
+  description String?
+  // Kurs narxi (so'mda)
+  price       Int
+  // Kurs davomiyligi (oyda)
+  duration    Int
+  // Kurs holati
+  status      Status   @default(ACTIVE)
+  // Shu kursga tegishli guruhlar
+  groups      Group[]
+  // Yaratilgan vaqti
+  createdAt   DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt   DateTime @updatedAt
+}
+
+// O'quv xonalari jadvali
+model Room {
+  // Xonaning unikal raqami
+  id        Int      @id @default(autoincrement())
+  // Xona nomi yoki raqami
+  name      String   @unique
+  // Xona sig'imi (nechta o'quvchi)
+  capacity  Int
+  // Shu xonada o'qiydigan guruhlar
+  groups    Group[]
+  // Yaratilgan vaqti
+  createdAt DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime @updatedAt
+}
+
+// Guruhlar jadvali
+model Group {
+  // Guruhning unikal raqami
+  id        Int            @id @default(autoincrement())
+  // Guruh nomi
+  name      String         @unique
+  // Guruh qaysi kursga tegishli
+  courseId  Int
+  // Kurs bilan bog'lanish
+  course    Course         @relation(fields: [courseId], references: [id])
+  // Guruh o'qituvchisining raqami
+  teacherId Int
+  // O'qituvchi bilan bog'lanish
+  teacher   User           @relation(fields: [teacherId], references: [id])
+  // Guruh o'qiydigan xona raqami
+  roomId    Int
+  // Xona bilan bog'lanish
+  room      Room           @relation(fields: [roomId], references: [id])
+  // Dars boshlanish sanasi
+  startDate DateTime
+  // Guruh holati
+  status    GroupStatus    @default(NEW)
+  // Guruhdagi o'quvchilar
+  students  GroupStudent[]
+  // Guruhdagi darslar
+  lessons   Lesson[]
+  // Guruh bo'yicha to'lovlar
+  payments  Payment[]
+  // Guruhdagi imtihonlar
+  exams     Exam[]
+  // Yaratilgan vaqti
+  createdAt DateTime       @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime       @updatedAt
+}
+
+// Guruh va o'quvchini bog'lovchi jadval
+model GroupStudent {
+  // Yozuvning unikal raqami
+  id        Int      @id @default(autoincrement())
+  // Guruh raqami
+  groupId   Int
+  // Guruh bilan bog'lanish
+  group     Group    @relation(fields: [groupId], references: [id])
+  // O'quvchi raqami
+  studentId Int
+  // O'quvchi bilan bog'lanish
+  student   User     @relation(fields: [studentId], references: [id])
+  // O'quvchining guruhdagi holati
+  status    Status   @default(ACTIVE)
+  // Yaratilgan vaqti
+  createdAt DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime @updatedAt
+
+  // Bitta o'quvchi bitta guruhga faqat bir marta qo'shiladi
+  @@unique([groupId, studentId])
+}
+
+// Darslar jadvali
+model Lesson {
+  // Darsning unikal raqami
+  id          Int          @id @default(autoincrement())
+  // Dars o'tiladigan guruh raqami
+  groupId     Int
+  // Guruh bilan bog'lanish
+  group       Group        @relation(fields: [groupId], references: [id])
+  // Dars mavzusi
+  topic       String
+  // Dars o'tiladigan sana
+  lessonDate  DateTime
+  // Shu darsdagi davomat yozuvlari
+  attendances Attendance[]
+  // Shu darsga berilgan uy vazifalari
+  homeworks   Homework[]
+  // Yaratilgan vaqti
+  createdAt   DateTime     @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt   DateTime     @updatedAt
+}
+
+// Davomat jadvali
+model Attendance {
+  // Davomat yozuvining unikal raqami
+  id        Int              @id @default(autoincrement())
+  // Qaysi dars uchun ekanligi
+  lessonId  Int
+  // Dars bilan bog'lanish
+  lesson    Lesson           @relation(fields: [lessonId], references: [id])
+  // O'quvchi raqami
+  studentId Int
+  // O'quvchi bilan bog'lanish
+  student   User             @relation(fields: [studentId], references: [id])
+  // Davomat belgisi
+  status    AttendanceStatus
+  // Qo'shimcha izoh
+  comment   String?
+  // Yaratilgan vaqti
+  createdAt DateTime         @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime         @updatedAt
+
+  // Bitta darsda bitta o'quvchiga faqat bitta belgi qo'yiladi
+  @@unique([lessonId, studentId])
+}
+
+// O'quvchilarning to'lovlari jadvali
+model Payment {
+  // To'lovning unikal raqami
+  id        Int           @id @default(autoincrement())
+  // To'lov qilgan o'quvchi raqami
+  studentId Int
+  // O'quvchi bilan bog'lanish
+  student   User          @relation(fields: [studentId], references: [id])
+  // Qaysi guruh uchun to'lanayotgani
+  groupId   Int
+  // Guruh bilan bog'lanish
+  group     Group         @relation(fields: [groupId], references: [id])
+  // To'lov summasi (so'mda)
+  amount    Int
+  // To'lov turi
+  method    PaymentMethod
+  // To'lov qilingan vaqt
+  paidAt    DateTime      @default(now())
+  // Qo'shimcha izoh
+  comment   String?
+  // Yaratilgan vaqti
+  createdAt DateTime      @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime      @updatedAt
+}
+
+// O'qituvchilarning maoshi jadvali
+model Salary {
+  // Maosh yozuvining unikal raqami
+  id        Int      @id @default(autoincrement())
+  // Maosh oluvchi o'qituvchi raqami
+  teacherId Int
+  // O'qituvchi bilan bog'lanish
+  teacher   User     @relation(fields: [teacherId], references: [id])
+  // Maosh summasi (so'mda)
+  amount    Int
+  // Qaysi oy uchun (masalan 2026-09)
+  month     String
+  // Maosh berilgan vaqt
+  paidAt    DateTime @default(now())
+  // Qo'shimcha izoh
+  comment   String?
+  // Yaratilgan vaqti
+  createdAt DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime @updatedAt
+
+  // Bitta o'qituvchiga bir oy uchun bitta maosh yoziladi
+  @@unique([teacherId, month])
+}
+
+// Imtihonlar jadvali
+model Exam {
+  // Imtihonning unikal raqami
+  id        Int          @id @default(autoincrement())
+  // Imtihon o'tkaziladigan guruh raqami
+  groupId   Int
+  // Guruh bilan bog'lanish
+  group     Group        @relation(fields: [groupId], references: [id])
+  // Imtihon nomi
+  title     String
+  // Imtihon sanasi
+  examDate  DateTime
+  // Maksimal ball
+  maxScore  Int
+  // Imtihon natijalari
+  results   ExamResult[]
+  // Yaratilgan vaqti
+  createdAt DateTime     @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime     @updatedAt
+}
+
+// Imtihon natijalari jadvali
+model ExamResult {
+  // Natijaning unikal raqami
+  id        Int      @id @default(autoincrement())
+  // Qaysi imtihon uchun ekanligi
+  examId    Int
+  // Imtihon bilan bog'lanish
+  exam      Exam     @relation(fields: [examId], references: [id])
+  // O'quvchi raqami
+  studentId Int
+  // O'quvchi bilan bog'lanish
+  student   User     @relation(fields: [studentId], references: [id])
+  // To'plangan ball
+  score     Int
+  // O'qituvchining izohi
+  comment   String?
+  // Yaratilgan vaqti
+  createdAt DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime @updatedAt
+
+  // Bitta imtihonda bitta o'quvchiga faqat bitta natija yoziladi
+  @@unique([examId, studentId])
+}
+
+// Uy vazifalari jadvali
+model Homework {
+  // Uy vazifasining unikal raqami
+  id          Int                  @id @default(autoincrement())
+  // Qaysi darsga berilgani
+  lessonId    Int
+  // Dars bilan bog'lanish
+  lesson      Lesson               @relation(fields: [lessonId], references: [id])
+  // Uy vazifasi sarlavhasi
+  title       String
+  // Uy vazifasi sharti
+  description String?
+  // Topshirish muddati
+  deadline    DateTime
+  // Topshirilgan javoblar
+  submissions HomeworkSubmission[]
+  // Yaratilgan vaqti
+  createdAt   DateTime             @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt   DateTime             @updatedAt
+}
+
+// O'quvchilar topshirgan uy vazifalari jadvali
+model HomeworkSubmission {
+  // Yozuvning unikal raqami
+  id         Int      @id @default(autoincrement())
+  // Qaysi uy vazifasi uchun ekanligi
+  homeworkId Int
+  // Uy vazifasi bilan bog'lanish
+  homework   Homework @relation(fields: [homeworkId], references: [id])
+  // Topshirgan o'quvchi raqami
+  studentId  Int
+  // O'quvchi bilan bog'lanish
+  student    User     @relation(fields: [studentId], references: [id])
+  // O'quvchining javobi
+  answer     String
+  // O'qituvchi qo'ygan ball
+  score      Int?
+  // Yaratilgan vaqti
+  createdAt  DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt  DateTime @updatedAt
+
+  // Bitta vazifani bitta o'quvchi faqat bir marta topshiradi
+  @@unique([homeworkId, studentId])
+}
+
+// O'quv markazining xarajatlari jadvali
+model Expense {
+  // Xarajatning unikal raqami
+  id        Int      @id @default(autoincrement())
+  // Xarajat nomi
+  title     String
+  // Xarajat summasi (so'mda)
+  amount    Int
+  // Xarajat turi (masalan ijara, kommunal)
+  category  String
+  // Xarajat qilingan sana
+  spentAt   DateTime @default(now())
+  // Qo'shimcha izoh
+  comment   String?
+  // Yaratilgan vaqti
+  createdAt DateTime @default(now())
+  // Oxirgi o'zgargan vaqti
+  updatedAt DateTime @updatedAt
 }

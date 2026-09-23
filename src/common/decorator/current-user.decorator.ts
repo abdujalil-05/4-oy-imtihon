@@ -1,29 +1,22 @@
+// Nest dan parametr dekoratori yaratish uchun kerakli vositalar
 import {
   createParamDecorator,
   ExecutionContext,
   UnauthorizedException,
-} from '@nestjs/common'; // Parametr decorator
-import { IUser } from '../interface/IUser.interface'; // req.user tipi
+} from '@nestjs/common';
 
-// @UserId() — faqat foydalanuvchi ID
+// Tokendan olingan foydalanuvchi raqamini qaytaruvchi dekorator
 export const UserId = createParamDecorator(
   (key: string | undefined, ctx: ExecutionContext) => {
-    const req = ctx.switchToHttp().getRequest(); // So'rov
-    const userId = req.user?.sub; // AuthGuard yozgan
+    // So'rov obyektini olamiz
+    const req = ctx.switchToHttp().getRequest();
+    // Guard qo'ygan foydalanuvchi raqamini olamiz
+    const userId = req.user?.sub;
+    // Agar raqam bo'lmasa so'rovni to'xtatamiz
     if (!userId) {
       throw new UnauthorizedException('Foydalanuvchi topilmadi');
     }
+    // Raqam ko'rinishida qaytaramiz
     return Number(userId);
-  },
-);
-
-// @CurrentUser() — butun req.user (sub, role, deviceId) — TZ 9.6
-export const CurrentUser = createParamDecorator(
-  (key: string | undefined, ctx: ExecutionContext): IUser => {
-    const req = ctx.switchToHttp().getRequest(); // So'rov
-    if (!req.user) {
-      throw new UnauthorizedException('Foydalanuvchi topilmadi');
-    }
-    return req.user;
   },
 );

@@ -1,3 +1,5 @@
-import { App } from './app.service'; // Ilova klassi
+// Serverni ishga tushiruvchi klass
+import { App } from './app.service';
 
-App.main(); // Ishga tushirish
+// Serverni ishga tushiramiz
+App.main();

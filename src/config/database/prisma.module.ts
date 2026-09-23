@@ -1,10 +1,12 @@
-import { Global, Module } from '@nestjs/common'; // Global modul
-import { PrismaService } from './prisma.service'; // Servis
+// Modul yasash uchun Nest vositalari
+import { Global, Module } from '@nestjs/common';
+// Baza bilan ishlovchi xizmat
+import { PrismaService } from './prisma.service';
 
-// Global — hamma modulda import qilmasdan ishlatiladi
+// Baza xizmatini butun loyihaga ochib beruvchi modul
 @Global()
 @Module({
-  providers: [PrismaService], // Ro'yxatdan o'tkazish
-  exports: [PrismaService], // Eksport
+  providers: [PrismaService],
+  exports: [PrismaService],
 })
 export class PrismaModule {}

@@ -1,205 +1,176 @@
+// Kerakli xato turlari
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
-  HttpStatus,
   Injectable,
-  UnauthorizedException,
-} from '@nestjs/common'; // Xatolar
-import type { Request } from 'express'; // So'rov tipi
-import { PrismaService } from '../../config/database/prisma.service'; // Baza
-import { Crypt } from '../../infrastructure/lib/Crypt'; // Parol
-import { Token } from '../../infrastructure/lib/Token'; // Tokenlar
-import { successRes } from '../../common/helper/success-response'; // Javob
-import { RevokeReason } from '../../common/enum'; // Sabablar
-import { env } from '../../config'; // Sozlamalar
-import { IUser } from '../../common/interface/IUser.interface'; // req.user
-import { DeviceService } from './device.service'; // Qurilmalar
-import { SignInDto } from './dto/sign-in.dto'; // DTO
+} from '@nestjs/common';
+// Baza bilan ishlovchi xizmat
+import { PrismaService } from '../../config/database/prisma.service';
+// Tizimga kirish ma'lumoti
+import { SignInDto } from './dto/sign-in.dto';
+// Parol bilan ishlovchi klass
+import { Crypt } from '../../infrastructure/lib/Crypt';
+// Bir xil javob qaytaruvchi funksiya
+import { successRes } from '../../common/helper/success-response';
+// Token bilan ishlovchi klass
+import { Token } from '../../infrastructure/lib/Token';
+// Express so'rov va javob turlari
+import type { Response, Request } from 'express';
+// Qurilma ma'lumotini oluvchi funksiya
+import { getDeviceInfo } from '../../common/helper/device-info';
+// Holatlar ro'yxati
+import { Status } from '../../common/enum';
 
+// Tizimga kirish bilan ishlovchi xizmat
 @Injectable()
 export class AuthService {
-  constructor(
-    private readonly db: PrismaService, // Baza
-    private readonly device: DeviceService, // Qurilmalar
-  ) {}
+  constructor(private readonly db: PrismaService) {}
 
-  // LOGIN (TZ 8.1)
-  async signIn(dto: SignInDto, req: Request) {
+  async signIn(dto: SignInDto, req: Request, res: Response) {
+    // Login bo'yicha foydalanuvchini qidiramiz
     const user = await this.db.user.findUnique({
-      where: { login: dto.login.toLowerCase() }, // Kichik harfga
+      where: { login: dto.login },
     });
-
-    // Topilmasa ham bcrypt ishlaydi (vaqt tengligi) — xabar bir xil
+    // Parolni shifrlangan parol bilan solishtiramiz
     const isMatchPass = await Crypt.compare(
       dto.password,
-      user
-        ? user.hashedPassword
-        : '$2b$12$C6UzMDM.H6dfI/f/IKcEeO5c5aX6xTFbXbXbXbXbXbXbXbXbXbXbX',
+      user ? user.hashedPassword : '',
     );
-    if (!user) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    // Login yoki parol xato bo'lsa kiritmaymiz
+    if (!isMatchPass || !user) {
+      throw new BadRequestException('Login yoki parol xato');
     }
-
-    // Vaqtinchalik blok — parol tekshiruvidan OLDIN
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const minutes = Math.ceil(
-        (user.lockedUntil.getTime() - Date.now()) / 60000,
-      ); // Qoldi
-      throw new HttpException(
-        `Juda ko'p urinish. ${minutes} daqiqadan keyin qayta urinib ko'ring`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+    // Foydalanuvchi nofaol bo'lsa kiritmaymiz
+    if (user.status === Status.INACTIVE) {
+      throw new ForbiddenException('Foydalanuvchi bloklangan');
     }
-
-    // Parol xato — hisoblagich, limitda blok
-    if (!isMatchPass) {
-      const failed = user.failedLoginCount + 1; // +1
-      await this.db.user.update({
-        where: { id: user.id },
-        data:
-          failed >= env.AUTH.MAX_ATTEMPTS
-            ? {
-                failedLoginCount: 0,
-                lockedUntil: new Date(
-                  Date.now() + env.AUTH.LOCK_MINUTES * 60000,
-                ),
-              } // Blok
-            : { failedLoginCount: failed }, // Faqat +1
-      });
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
-    }
-
-    // Admin bloki — parol tekshiruvidan KEYIN
-    if (!user.isActive) {
+    // Foydalanuvchining qurilmalarini olamiz
+    const devices = await this.db.devices.findMany({
+      where: { userId: user.id },
+    });
+    // Qurilmalar soni chegaradan oshsa kiritmaymiz
+    if (devices.length >= 2) {
       throw new ForbiddenException(
-        'Hisob bloklangan. Administratorga murojaat qiling',
+        'Qurilmalar soni 2 tadan oshishi taqiqlanadi',
       );
     }
-
-    // Muvaffaqiyat — hisoblagich 0, oxirgi kirish
-    await this.db.user.update({
-      where: { id: user.id },
-      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
-    });
-
-    // Qurilma (sessiya) yaratish — limit ichida
-    const { deviceId, refreshToken } = await this.device.create(
-      user.id,
-      req,
-      dto.deviceName,
-    );
-
-    // Access token: sub, role, deviceId
-    const accessToken = await Token.getAccessToken({
-      sub: user.id,
-      role: user.role,
-      deviceId,
-    });
-
-    return successRes({
-      accessToken,
-      refreshToken,
-      accessTokenExpiresIn: Token.accessTtlSeconds(),
-      user: {
-        id: user.id,
-        login: user.login,
-        fullName: user.fullName,
-        role: user.role,
+    // So'rovdan qurilma ma'lumotini olamiz
+    const { client, os } = getDeviceInfo(req);
+    // Yangi qurilmani bazaga yozamiz
+    const device = await this.db.devices.create({
+      data: {
+        user: { connect: { id: user.id } },
+        device: `${client?.name} ${os?.name ? os.name : 'unknown'}`,
+        hashedRefreshToken: '',
       },
     });
-  }
-
-  // REFRESH (TZ 8.3)
-  async refreshToken(refreshToken: string, req: Request) {
-    const rotated = await this.device.rotate(refreshToken, req.ip); // Rotatsiya + reuse
-    if (!rotated) {
-      throw new UnauthorizedException('Sessiya tugagan. Qayta kiring'); // Umumiy xabar
-    }
-    const user = await this.db.user.findUnique({
-      where: { id: rotated.userId },
-    }); // Rol uchun
-    if (!user) {
-      throw new UnauthorizedException('Sessiya tugagan. Qayta kiring');
-    }
-    const accessToken = await Token.getAccessToken({
+    // Token ichiga yoziladigan ma'lumotni yig'amiz
+    const payload = {
       sub: user.id,
       role: user.role,
-      deviceId: rotated.deviceId, // O'sha qurilma
+      status: user.status,
+      deviceId: device.deviceId,
+    };
+    // Tokenlarni yasaymiz
+    const { accessToken, refreshToken } = await Token.getToken(payload);
+    // Refresh tokenni shifrlaymiz
+    const hashedRefreshToken = await Crypt.hash(refreshToken);
+    // Shifrlangan tokenni qurilmaga yozamiz
+    await this.db.devices.update({
+      where: { deviceId: device.deviceId },
+      data: {
+        hashedRefreshToken,
+      },
     });
-    return successRes({
-      accessToken,
-      refreshToken: rotated.refreshToken,
-      accessTokenExpiresIn: Token.accessTtlSeconds(),
-    });
+    // Tokenlarni cookie ga yozamiz
+    Token.setCookie(res, accessToken, refreshToken);
+    // Qurilma haqidagi ma'lumotni qaytaramiz
+    return successRes(
+      {
+        userId: device.userId,
+        deviceId: device.deviceId,
+        device: device.device,
+        createdAt: device.createdAt,
+      },
+      201,
+    );
   }
 
-  // LOGOUT — joriy qurilma (TZ 8.4), deviceId tokendan
-  async signOut(user: IUser) {
-    await this.device.revoke(user.deviceId, RevokeReason.LOGOUT);
+  async refreshToken(refreshToken: string, res: Response) {
+    // Refresh tokenni tekshiramiz
+    const verifiedData = await Token.verifyToken(refreshToken, 'refresh');
+    // Tokendagi qurilmani bazadan qidiramiz
+    const device = await this.db.devices.findUnique({
+      where: {
+        deviceId: verifiedData.deviceId,
+        userId: verifiedData.sub,
+      },
+    });
+    // Qurilma topilmasa xato qaytaramiz
+    if (!device) {
+      throw new BadRequestException(
+        'Tizimda bunday foydalanuvchi yoki qurilma topilmadi',
+      );
+    }
+    // Tokenni qurilmadagi shifrlangan token bilan solishtiramiz
+    const isMatchToken = await Crypt.compare(
+      refreshToken,
+      device.hashedRefreshToken,
+    );
+    // Token mos kelmasa xato qaytaramiz
+    if (!isMatchToken) {
+      throw new BadRequestException("Qurilma tizimda ro'yxatdan o'tmagan");
+    }
+    // Eski vaqt maydonlarini olib tashlaymiz
+    delete verifiedData.iat;
+    delete verifiedData.exp;
+    // Yangi access tokenni yasaymiz
+    const { accessToken } = await Token.getToken(verifiedData);
+    // Yangi tokenni cookie ga yozamiz
+    Token.setCookie(res, accessToken);
+    // Qurilma haqidagi ma'lumotni qaytaramiz
+    return successRes(
+      {
+        userId: device.userId,
+        deviceId: device.deviceId,
+        device: device.device,
+        createdAt: device.createdAt,
+      },
+      201,
+    );
+  }
+
+  async signOut(refreshToken: string, res: Response) {
+    // Refresh tokenni tekshiramiz
+    const verifiedData = await Token.verifyToken(refreshToken, 'refresh');
+    // Qurilmani bazadan o'chiramiz
+    await this.db.devices.delete({
+      where: {
+        deviceId: verifiedData.deviceId,
+        userId: verifiedData.sub,
+      },
+    });
+    // Cookie dagi tokenlarni tozalaymiz
+    Token.clearCookie(res);
+    // Bo'sh javob qaytaramiz
     return successRes({});
   }
 
-  // LOGOUT-ALL (TZ 8.5)
-  async signOutAll(user: IUser) {
-    await this.device.revokeAll(user.sub, RevokeReason.LOGOUT_ALL);
-    return successRes({});
-  }
-
-  // ME (TZ 8.6) — xeshsiz
-  async me(user: IUser) {
-    const data = await this.db.user.findUnique({
-      where: { id: user.sub },
+  async findMe(userId: number) {
+    // Foydalanuvchining o'z ma'lumotini olamiz
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
       select: {
         id: true,
         login: true,
         fullName: true,
+        phone: true,
+        imageUrl: true,
         role: true,
-        lastLoginAt: true,
+        status: true,
       },
     });
-    if (!data) {
-      throw new UnauthorizedException('Sessiya tugagan. Qayta kiring');
-    }
-    return successRes(data);
-  }
-
-  // PAROLNI O'ZGARTIRISH (TZ 8.9)
-  async changePassword(
-    user: IUser,
-    currentPassword: string,
-    newPassword: string,
-  ) {
-    if (currentPassword === newPassword) {
-      throw new BadRequestException(
-        'Yangi parol joriy paroldan farq qilishi kerak',
-      );
-    }
-    const found = await this.db.user.findUnique({ where: { id: user.sub } }); // Xesh bilan
-    if (!found) {
-      throw new UnauthorizedException('Sessiya tugagan. Qayta kiring');
-    }
-    const isMatchPass = await Crypt.compare(
-      currentPassword,
-      found.hashedPassword,
-    ); // Joriy parol
-    if (!isMatchPass) {
-      throw new BadRequestException("Joriy parol noto'g'ri"); // 400 — foydalanuvchi tanilgan
-    }
-    const hashedPassword = await Crypt.hash(newPassword); // Yangi xesh
-    // Tranzaksiya: xesh + joriydan boshqa qurilmalar yopiladi
-    await this.db.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: found.id },
-        data: { hashedPassword },
-      });
-      await this.device.revokeAll(
-        found.id,
-        RevokeReason.PASSWORD_CHANGED,
-        tx,
-        user.deviceId,
-      );
-    });
-    return successRes({});
+    // Ma'lumotni qaytaramiz
+    return successRes(user ? user : {});
   }
 }

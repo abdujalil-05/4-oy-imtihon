@@ -1,5 +1,7 @@
-// Muvaffaqiyatli javob formati
+// Muvaffaqiyatli javob ko'rinishi
 export interface ISuccess {
-  statusCode: number; // HTTP kod
-  data: object; // Ma'lumot
+  // Javob statusi
+  statusCode: number;
+  // Javob ma'lumoti
+  data: object;
 }

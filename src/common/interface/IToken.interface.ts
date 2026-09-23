@@ -1,6 +1,7 @@
-// Login / refresh javobidagi tokenlar
+// Tokenlar juftligi ko'rinishi
 export interface IToken {
-  accessToken: string; // JWT
-  refreshToken: string; // Opaque satr
-  accessTokenExpiresIn: number; // Sekundlarda
+  // Qisqa muddatli access token
+  accessToken: string;
+  // Uzoq muddatli refresh token
+  refreshToken: string;
 }
