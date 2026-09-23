@@ -7,6 +7,7 @@ import { UserModule } from './modules/user/user.module'; // Foydalanuvchilar
 import { AuthGuard } from './common/guard/jwt-auth.guard'; // Global auth guard
 import { RolesGuard } from './common/guard/roles.guard'; // Global rol guard
 import { GroupsModule } from './modules/groups/groups.module';
+import { StudentModule } from './modules/student/student.module';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { GroupsModule } from './modules/groups/groups.module';
     }),
     AuthModule, // Auth
     UserModule, // Foydalanuvchilar
-    GroupsModule,
+    GroupsModule, StudentModule,
   ],
   providers: [
     // Global guardlar — TARTIB MUHIM (TZ 4.5): Throttler → Auth → Roles

@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common'; // Xatolar
 import { PrismaService } from '../../config/database/prisma.service'; // Baza
 import { Crypt } from '../../infrastructure/lib/Crypt'; // Parol
-import { RevokeReason } from '../../common/enum'; // Sabablar
+import { RevokeReason, Roles } from '../../common/enum'; // Sabablar
 import { successRes } from '../../common/helper/success-response'; // Javob
 import { DeviceService } from '../auth/device.service'; // Qurilmalar
 import { CreateUserDto } from './dto/create-user.dto'; // DTO
 import { QueryUserDto } from './dto/query-user.dto'; // DTO
+import { dateTimestampProvider } from 'rxjs/internal/scheduler/dateTimestampProvider';
 
 // API javobida qaytadigan maydonlar — hashedPassword YO'Q
 const userSelect = {
@@ -45,16 +46,25 @@ export class UserService {
 
   // Yaratish — login kichik harfda, band → 409, parol xeshlanadi
   async create(dto: CreateUserDto) {
+    const { password, fullName, role} = dto
     const login = dto.login.toLowerCase(); // Kichik harf
     const existsLogin = await this.db.user.findUnique({ where: { login } }); // Bandmi?
     if (existsLogin) {
       throw new ConflictException('Bu login band');
     }
-    const hashedPassword = await Crypt.hash(dto.password); // Xesh
+    const hashedPassword = await Crypt.hash(password); // Xesh
     const user = await this.db.user.create({
-      data: { login, hashedPassword, fullName: dto.fullName, role: dto.role },
+      data: { login, hashedPassword, fullName, role },
       select: userSelect, // Xesh qaytmaydi
     });
+
+    if (role === Roles.STUDENT){
+      await this.db.student.create({data : { userId : user.id }})
+    }else{
+      await this.db.teacher.create({
+        data : { userId : user.id }
+      })
+    }
     return successRes(user, 201);
   }
 
