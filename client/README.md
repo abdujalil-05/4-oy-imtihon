@@ -27,7 +27,7 @@ pnpm install
 pnpm dev
 ```
 
-`http://localhost:5173` da ochiladi.
+`http://localhost:5180` da ochiladi.
 
 ### Nega proxy ishlatilgan
 

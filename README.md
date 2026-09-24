@@ -32,10 +32,10 @@ Backend ishlab turganda, **alohida terminalda**:
 ```bash
 cd client
 pnpm install
-pnpm dev                          # http://localhost:5173
+pnpm dev                          # http://localhost:5180
 ```
 
-Brauzerda `http://localhost:5173` ni oching va superadmin login-paroli bilan kiring.
+Brauzerda `http://localhost:5180` ni oching va superadmin login-paroli bilan kiring.
 
 Boshqa buyruqlar:
 
