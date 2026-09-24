@@ -10,6 +10,8 @@ NestJS + Prisma + PostgreSQL asosidagi o'quv markazi uchun mini ERP.
 
 ## Ishga tushirish
 
+### Backend
+
 ```bash
 cp .env.example .env        # qiymatlarni to'ldiring
 pnpm install
@@ -22,6 +24,37 @@ Swagger: `http://localhost:3000/api/v1/docs`
 Birinchi superadmin `.env` dagi `SUPERADMIN_LOGIN` va `SUPERADMIN_PASSWORD` bilan
 server ishga tushganda avtomatik yaratiladi. Qolgan foydalanuvchilarni faqat
 superadmin `POST /user` orqali qo'shadi.
+
+### Frontend
+
+Backend ishlab turganda, **alohida terminalda**:
+
+```bash
+cd client
+pnpm install
+pnpm dev                          # http://localhost:5173
+```
+
+Brauzerda `http://localhost:5173` ni oching va superadmin login-paroli bilan kiring.
+
+Boshqa buyruqlar:
+
+```bash
+pnpm build                        # prod uchun yig'ish (client/dist)
+pnpm preview                      # yig'ilgan versiyani ko'rish
+```
+
+Backend boshqa manzilda bo'lsa, `client/.env` fayl yarating:
+
+```
+VITE_API_TARGET=http://localhost:3000
+```
+
+> Frontend `/api` so'rovlarini Vite dev-server orqali backendga proxy qiladi.
+> Bu backendning `httpOnly` cookie'lari bir xil origin ichida qolishi uchun kerak —
+> `pnpm dev` ni backendsiz ishga tushirsangiz, login ishlamaydi.
+
+Batafsil: [client/README.md](./client/README.md)
 
 ## Modullar
 
