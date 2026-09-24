@@ -1,3 +1,4 @@
+import { hadSession, markSignedOut } from './session';
 import type { ApiError, ApiSuccess } from './types';
 
 const BASE = '/api/v1';
@@ -25,11 +26,18 @@ interface RequestOptions {
 let refreshing: Promise<boolean> | null = null;
 
 async function refreshSession(): Promise<boolean> {
+  if (!hadSession()) {
+    return false;
+  }
+
   refreshing ??= fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
   })
-    .then((res) => res.ok)
+    .then((res) => {
+      if (!res.ok) markSignedOut();
+      return res.ok;
+    })
     .catch(() => false)
     .finally(() => {
       setTimeout(() => {
