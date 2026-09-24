@@ -27,7 +27,10 @@ pnpm install
 pnpm dev
 ```
 
-`http://localhost:5180` da ochiladi.
+`http://localhost:5180` da ochiladi. `pnpm dev` shu bilan birga **Network**
+manzilini ham chiqaradi (`http://<sizning-IP>:5180`) — uni bitta Wi-Fi dagi
+boshqa qurilmadan ochish mumkin, backendni tarmoqqa chiqarish shart emas:
+`/api` so'rovlari Vite orqali uning o'z mashinasidagi backendga uzatiladi.
 
 ### Nega proxy ishlatilgan
 

@@ -32,10 +32,34 @@ Backend ishlab turganda, **alohida terminalda**:
 ```bash
 cd client
 pnpm install
-pnpm dev                          # http://localhost:5180
+pnpm dev
+```
+
+`pnpm dev` ikkita manzil chiqaradi:
+
+```
+➜  Local:   http://localhost:5180/
+➜  Network: http://10.10.1.24:5180/
 ```
 
 Brauzerda `http://localhost:5180` ni oching va superadmin login-paroli bilan kiring.
+
+#### Tarmoq orqali ochish
+
+**Network** qatoridagi manzilni bitta Wi-Fi ga ulangan boshqa kompyuter yoki
+telefondan ochish mumkin (IP har bir tarmoqda o'zgaradi — terminalda chiqqanini
+oling, quyidagi `10.10.1.24` faqat misol).
+
+Backendni alohida ochib berish shart emas: mehmon brauzeri `/api` ga murojaat
+qilganda, so'rovni Vite o'zining mashinasidagi `localhost:3000` ga uzatadi.
+Ya'ni backend ham, baza ham faqat sizning kompyuteringizda qoladi.
+
+Agar manzil ochilmasa:
+
+- ikkala qurilma bitta Wi-Fi da ekanini tekshiring
+- macOS so'raganda `node` ga tarmoqqa ruxsat bering
+  (Tizim sozlamalari → Tarmoq → Fayervol)
+- `pnpm dev` ishlab turgan terminalni yopmang
 
 Boshqa buyruqlar:
 
