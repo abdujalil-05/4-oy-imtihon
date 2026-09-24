@@ -135,7 +135,7 @@ export function Profile() {
         <Card className="overflow-hidden" id="devices">
           <CardHeader
             title="Faol qurilmalar"
-            subtitle="Bir hisobga ko'pi bilan 2 ta qurilma ulanadi"
+            subtitle="Hisobingizga ulangan seanslar"
           />
 
           {(devices ?? []).length === 0 ? (

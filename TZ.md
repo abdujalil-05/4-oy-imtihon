@@ -143,7 +143,6 @@ bitta imtihonda bitta natija, bitta vazifaga bitta javob, bitta oyga bitta maosh
 - Payload: `{ sub, role, status, deviceId }`
 - Tokenlar `httpOnly` cookie da yuboriladi (`accessToken`, `refreshToken`)
 - Refresh token bazada shifrlangan holda `Devices.hashedRefreshToken` da saqlanadi
-- Bitta foydalanuvchi uchun qurilmalar soni **2 tadan** oshmaydi
 - Eski qurilmani o'chirish uchun sessiya kamida **24 soat** bo'lishi kerak
 - Joriy qurilmani o'chirib bo'lmaydi
 

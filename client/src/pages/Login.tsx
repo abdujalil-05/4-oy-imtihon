@@ -173,8 +173,8 @@ export function Login() {
           </form>
 
           <p className="mt-6 text-[12px] leading-relaxed text-[var(--ink-3)]">
-            Bir hisobga bir vaqtda 2 tadan ortiq qurilma ulanolmaydi. Agar xato chiqsa,
-            eski qurilmani profil sahifasidan uzing.
+            Login-parolni administrator beradi. Ulangan qurilmalarni profil
+            sahifasidan ko'rib, keraksizini uzib qo'yishingiz mumkin.
           </p>
         </motion.div>
       </section>

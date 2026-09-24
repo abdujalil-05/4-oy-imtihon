@@ -30,14 +30,6 @@ export class AuthService {
     if (user.status === Status.INACTIVE) {
       throw new ForbiddenException('Foydalanuvchi bloklangan');
     }
-    const devices = await this.db.devices.findMany({
-      where: { userId: user.id },
-    });
-    if (devices.length >= 2) {
-      throw new ForbiddenException(
-        'Qurilmalar soni 2 tadan oshishi taqiqlanadi',
-      );
-    }
     const { client, os } = getDeviceInfo(req);
     const device = await this.db.devices.create({
       data: {
